@@ -6,15 +6,18 @@ on:
       - 'v*'
       - '*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     env:
-      KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-      KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-      KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-      KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      KEYSTORE_BASE64: ${{ vars.ANDROID_KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ vars.ANDROID_KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ vars.ANDROID_KEY_ALIAS }}
+      KEY_PASSWORD: ${{ vars.ANDROID_KEY_PASSWORD }}
 
     steps:
     - name: Checkout code
@@ -39,8 +42,8 @@ jobs:
     - name: Make gradlew executable
       run: chmod +x gradlew
 
-    - name: Check if signing secrets exist
-      id: check_secrets
+    - name: Check if signing variables exist
+      id: check_sign
       run: |
         if [ -n "$KEYSTORE_BASE64" ]; then
           echo "HAS_SIGNING=true" >> $GITHUB_OUTPUT
@@ -48,13 +51,13 @@ jobs:
           echo "HAS_SIGNING=false" >> $GITHUB_OUTPUT
         fi
 
-    - name: Create keystore from secrets
-      if: steps.check_secrets.outputs.HAS_SIGNING == 'true'
+    - name: Create keystore from variables
+      if: steps.check_sign.outputs.HAS_SIGNING == 'true'
       run: |
         echo "$KEYSTORE_BASE64" | base64 -d > app/keystore.jks
 
     - name: Build Release APK (with signing)
-      if: steps.check_secrets.outputs.HAS_SIGNING == 'true'
+      if: steps.check_sign.outputs.HAS_SIGNING == 'true'
       run: ./gradlew assembleRelease
       env:
         ANDROID_KEYSTORE_PATH: app/keystore.jks
@@ -63,36 +66,27 @@ jobs:
         ANDROID_KEY_PASSWORD: ${{ env.KEY_PASSWORD }}
 
     - name: Build Release APK (unsigned)
-      if: steps.check_secrets.outputs.HAS_SIGNING == 'false'
+      if: steps.check_sign.outputs.HAS_SIGNING == 'false'
       run: ./gradlew assembleRelease
 
     - name: Get tag name
       id: tag
       run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
-    - name: Upload Release APK
-      uses: actions/upload-artifact@v3
+    - name: Upload Release APK artifact
+      uses: actions/upload-artifact@v4
       with:
         name: BA_Recorder-${{ steps.tag.outputs.TAG_NAME }}
         path: app/build/outputs/apk/release/*.apk
 
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Publish GitHub Release and upload APK
+      uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ github.ref }}
-        release_name: BA Recorder ${{ steps.tag.outputs.TAG_NAME }}
+        tag_name: ${{ github.ref_name }}
+        name: BA Recorder ${{ steps.tag.outputs.TAG_NAME }}
         draft: false
         prerelease: false
-
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
+        files: |
+          app/build/outputs/apk/release/*.apk
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: app/build/outputs/apk/release/app-release.apk
-        asset_name: BA_Recorder-${{ steps.tag.outputs.TAG_NAME }}.apk
-        asset_content_type: application/vnd.android.package-archive
+        GITHUB_TOKEN: ${{ github.token }}
