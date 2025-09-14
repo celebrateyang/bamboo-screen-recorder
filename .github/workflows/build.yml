@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      KEYSTORE_BASE64: ${{ vars.ANDROID_KEYSTORE_BASE64 }}
-      KEYSTORE_PASSWORD: ${{ vars.ANDROID_KEYSTORE_PASSWORD }}
-      KEY_ALIAS: ${{ vars.ANDROID_KEY_ALIAS }}
-      KEY_PASSWORD: ${{ vars.ANDROID_KEY_PASSWORD }}
+      KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
     steps:
     - name: Checkout code
@@ -54,7 +54,7 @@ jobs:
     - name: Create keystore from variables
       if: steps.check_sign.outputs.HAS_SIGNING == 'true'
       run: |
-        echo "$KEYSTORE_BASE64" | base64 -d > app/keystore.jks
+        printf '%s' "$KEYSTORE_BASE64" | base64 -d > app/keystore.jks
 
     - name: Build Release APK (with signing)
       if: steps.check_sign.outputs.HAS_SIGNING == 'true'
