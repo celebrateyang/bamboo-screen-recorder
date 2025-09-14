@@ -3,12 +3,18 @@ name: Build APK
 on:
   push:
     tags:
-      - 'v*'  # 只在推送以 v 开头的 tag 时触发，如 v1.0, v1.0.1 等
-      - '*'   # 或者任何 tag 都触发（可选）
+      - 'v*'
+      - '*'
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    env:
+      KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
     steps:
     - name: Checkout code
@@ -33,28 +39,32 @@ jobs:
     - name: Make gradlew executable
       run: chmod +x gradlew
 
-    - name: Create keystore from secrets
-      if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
+    - name: Check if signing secrets exist
+      id: check_secrets
       run: |
-        echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > app/keystore.jks
-      env:
-        ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        if [ -n "$KEYSTORE_BASE64" ]; then
+          echo "HAS_SIGNING=true" >> $GITHUB_OUTPUT
+        else
+          echo "HAS_SIGNING=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create keystore from secrets
+      if: steps.check_secrets.outputs.HAS_SIGNING == 'true'
+      run: |
+        echo "$KEYSTORE_BASE64" | base64 -d > app/keystore.jks
 
     - name: Build Release APK (with signing)
-      if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
+      if: steps.check_secrets.outputs.HAS_SIGNING == 'true'
       run: ./gradlew assembleRelease
       env:
-        ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         ANDROID_KEYSTORE_PATH: app/keystore.jks
-        ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-        ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        ANDROID_KEYSTORE_PASSWORD: ${{ env.KEYSTORE_PASSWORD }}
+        ANDROID_KEY_ALIAS: ${{ env.KEY_ALIAS }}
+        ANDROID_KEY_PASSWORD: ${{ env.KEY_PASSWORD }}
 
     - name: Build Release APK (unsigned)
-      if: ${{ env.ANDROID_KEYSTORE_BASE64 == '' }}
+      if: steps.check_secrets.outputs.HAS_SIGNING == 'false'
       run: ./gradlew assembleRelease
-      env:
-        ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
 
     - name: Get tag name
       id: tag
