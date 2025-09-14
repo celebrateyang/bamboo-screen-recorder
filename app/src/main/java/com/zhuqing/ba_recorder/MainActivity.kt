@@ -63,8 +63,8 @@ class MainActivity : Activity() {
         // 通知权限（Android 13+）
         ensurePostNotificationPermission()
 
-        // 启动前台服务，避免 Android 14 时序问题
-        RecordingFgService.start(this)
+        // 不在冷启动时就启动前台服务，避免未授予通知权限导致的崩溃
+        // RecordingFgService.start(this)
 
         // 初始化
         projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
@@ -77,6 +77,14 @@ class MainActivity : Activity() {
         btnStart.setOnClickListener {
             if (isRecording) {
                 Toast.makeText(this, "已经在录制中", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            // 仅在已具备通知权限时才启动前台服务；否则先申请权限
+            if (Build.VERSION.SDK_INT >= 33 &&
+                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQ_NOTIF)
+                Toast.makeText(this, "请允许通知权限后再开始录制", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             RecordingFgService.start(this)
