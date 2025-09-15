@@ -1,15 +1,16 @@
 # BA Recorder
 
-A lightweight Android screen recorder app. It captures only the screen (no microphone) and saves MP4 videos to the public Movies/BA_Recorder folder so they appear in your Gallery.
+A lightweight Android screen recorder app. It captures the screen and saves MP4 videos to the public Movies/BA_Recorder folder so they appear in your Gallery.
 
 - Min Android version: 7.0 (API 24)
 - Target Android version: 14/15
 - Video location: Movies/BA_Recorder (public)
 
 ## Install directly (GitHub Releases)
-- Go to the repository’s Releases page and download the latest APK: [Releases](../../releases)
-- On your phone, open the APK and allow “Install unknown apps” for your browser/file manager if prompted.
-- If installation fails due to signature mismatch, uninstall older debug builds before installing this one.
+- Open the repository’s Releases page and download the latest APK in the Assets section: [Releases](../../releases)
+- On your phone, tap the downloaded APK to install.
+  - If prompted, allow “Install unknown apps” for your browser or file manager.
+  - If installation fails due to signature mismatch, uninstall older debug builds before installing this one.
 
 ## Install on your phone (source build)
 
@@ -17,7 +18,6 @@ You can install via Android Studio (recommended) or ADB.
 
 ### Option A: Android Studio
 - Enable Developer options and USB debugging on your phone
-  - Settings > About phone > Software information > tap "Build number" 7 times
   - Settings > Developer options > enable "USB debugging"
 - Connect the phone via USB. Pick "File Transfer" if prompted.
 - In Android Studio: select your device in the device chooser, then click Run.
@@ -30,8 +30,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ## First run & permissions
-- Android 13+ (Tiramisu): Allow Notifications so the foreground service notification can show.
-- Android 14+ (Upside Down Cake): The app starts a mediaProjection foreground service before recording. Do not block notifications; you should see a persistent "Recording" notification when recording.
+- Android 13+: Allow Notifications so the foreground service notification can show.
+- Android 14+: The app starts a mediaProjection foreground service before recording. Do not block notifications; you should see a persistent "Recording" notification when recording.
 - Android 9 and below: You will be asked for Storage permission to save to the public Movies folder.
 - Screen capture consent: When you tap "Start Recording", accept the system screen capture dialogs (including "Start now").
 
@@ -53,28 +53,27 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - UI looks blank / buttons missing: A system consent dialog may be in front; check recent apps or notifications and approve.
 
 ### Maintainers: CI to auto-build APK
-- GitHub Actions workflow is provided at `.github/workflows/build-apk.yml`.
-- Triggers:
-  - Push a tag like `v1.0.0` (recommended) — it builds and attaches the APK to the Release automatically.
-  - Or run it manually via “Run workflow” to get an artifact (Debug APK).
+- GitHub Actions workflow is provided at `.github/workflows/build.yml`.
+- Trigger:
+  - Push a tag like `v1.0.0` — it builds and attaches the Release APK to the GitHub Release automatically.
 - Output files:
-  - Debug APK path: `app/build/outputs/apk/debug/app-debug.apk`.
-  - For tag builds, the APK is uploaded to the corresponding GitHub Release.
+  - Release APK is uploaded to the tag’s GitHub Release (check the Assets section).
 
 ---
 
 # 屏幕录制应用（BA Recorder）
 
-一个轻量的安卓屏幕录制应用，只录屏幕（不采集麦克风），将 MP4 视频保存到公共的 Movies/BA_Recorder 文件夹，便于在相册中查看。
+一个轻量的安卓屏幕录制应用，将 MP4 视频保存到公共的 Movies/BA_Recorder 文件夹，便于在相册中查看。
 
 - 最低系统版本：Android 7.0（API 24）
 - 目标系统版本：Android 14/15
 - 视频位置：Movies/BA_Recorder（公共目录）
 
 ## 直接下载安装（GitHub Releases）
-- 前往本仓库的 Releases 页面下载最新 APK：[Releases](../../releases)
-- 在手机上打开 APK 安装，如提示“未知来源/从此来源安装”，请为浏览器或文件管理器授予安装权限。
-- 如果提示签名不一致导致安装失败，请先卸载旧的调试版再安装此版本。
+- 前往本仓库的 Releases 页面，在 Assets 中下载最新 APK：[Releases](../../releases)
+- 在手机上点击 APK 安装：
+  - 如提示“未知来源/从此来源安装”，请为浏览器或文件管理器授予安装权限。
+  - 如提示签名不一致导致安装失败，请先卸载旧的调试版再安装此版本。
 
 ## 在手机上安装（本地构建）
 
@@ -82,7 +81,6 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ### 方式 A：Android Studio
 - 启用开发者选项与 USB 调试：
-  - 设置 > 关于手机 > 软件信息 > 连续点“版本号”7次
   - 设置 > 开发者选项 > 打开“USB 调试”
 - 用数据线连接手机（如提示选择“文件传输”）。
 - 在 Android Studio 选择你的设备，点击运行（Run）。
@@ -116,10 +114,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - 界面空白或按钮不见：可能是系统授权弹窗遮挡，请在最近任务或通知栏找到并允许。
 
 ### 维护者：使用 CI 自动出包
-- 仓库已提供 GitHub Actions 工作流：`.github/workflows/build-apk.yml`
+- 仓库已提供 GitHub Actions 工作流：`.github/workflows/build.yml`
 - 触发方式：
-  - 推送形如 `v1.0.0` 的 Tag（推荐）：自动构建并将 APK 附加到对应 Release。
-  - 或在 Actions 页面点击 “Run workflow” 手动触发，生成调试 APK 工件。
+  - 推送形如 `v1.0.0` 的 Tag：自动构建并将 Release APK 附加到对应 Release 页面。
 - 产物：
-  - 调试 APK：`app/build/outputs/apk/debug/app-debug.apk`
-  - 推 Tag 的构建会把 APK 上传到该 Tag 的 Release。
+  - Release APK 会上传到该 Tag 的 GitHub Release（在 Assets 区域查看下载）。
