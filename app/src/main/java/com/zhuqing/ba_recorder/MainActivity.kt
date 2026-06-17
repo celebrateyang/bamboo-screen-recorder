@@ -34,6 +34,7 @@ class MainActivity : Activity() {
     private var mediaProjection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
     private var mediaRecorder: MediaRecorder? = null
+    private var internalAudioRecorder: InternalAudioScreenRecorder? = null
 
     private var isRecording = false
 
@@ -45,6 +46,7 @@ class MainActivity : Activity() {
     private val REQ_CAPTURE = 1001
     private val REQ_NOTIF = 2001
     private val REQ_WRITE = 2002
+    private val REQ_AUDIO = 2003
 
     // 按钮
     private lateinit var btnStart: Button
@@ -85,6 +87,10 @@ class MainActivity : Activity() {
             ) {
                 requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQ_NOTIF)
                 Toast.makeText(this, "请允许通知权限后再开始录制", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            if (!ensureInternalAudioPermission()) {
+                Toast.makeText(this, "请先允许录音权限，用于录制手机内部声音", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             RecordingFgService.start(this)
@@ -161,8 +167,6 @@ class MainActivity : Activity() {
                 return
             }
 
-            initRecorderWithCurrentOutput()
-
             // 必须在开始捕获前注册回调
             val mainHandler = Handler(Looper.getMainLooper())
             mediaProjection?.registerCallback(object : MediaProjection.Callback() {
@@ -171,19 +175,11 @@ class MainActivity : Activity() {
                 }
             }, mainHandler)
 
-            val surface = mediaRecorder!!.surface
-            virtualDisplay = mediaProjection!!.createVirtualDisplay(
-                "BA_Recorder_Display",
-                screenWidth,
-                screenHeight,
-                screenDensityDpi,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                surface,
-                null,
-                null
-            )
-
-            mediaRecorder?.start()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startInternalAudioRecording()
+            } else {
+                startVideoOnlyRecording()
+            }
             isRecording = true
             showStopOnly()
             Toast.makeText(this, "开始录屏", Toast.LENGTH_SHORT).show()
@@ -210,6 +206,15 @@ class MainActivity : Activity() {
                 requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), REQ_WRITE)
                 false
             } else true
+        } else true
+    }
+
+    private fun ensureInternalAudioPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_AUDIO)
+            false
         } else true
     }
 
@@ -241,6 +246,38 @@ class MainActivity : Activity() {
         recorder.setVideoSize(makeEven(screenWidth), makeEven(screenHeight))
         recorder.prepare()
         mediaRecorder = recorder
+    }
+
+    private fun startInternalAudioRecording() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        val fd = outputPfd?.fileDescriptor
+            ?: throw IllegalStateException("无有效输出文件")
+
+        internalAudioRecorder = InternalAudioScreenRecorder(
+            context = this,
+            mediaProjection = mediaProjection!!,
+            width = makeEven(screenWidth),
+            height = makeEven(screenHeight),
+            densityDpi = screenDensityDpi,
+            outputFd = fd,
+            videoBitrate = calculateBitrate(screenWidth, screenHeight)
+        ).also { it.start() }
+    }
+
+    private fun startVideoOnlyRecording() {
+        initRecorderWithCurrentOutput()
+        val surface = mediaRecorder!!.surface
+        virtualDisplay = mediaProjection!!.createVirtualDisplay(
+            "BA_Recorder_Display",
+            screenWidth,
+            screenHeight,
+            screenDensityDpi,
+            DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+            surface,
+            null,
+            null
+        )
+        mediaRecorder?.start()
     }
 
     private fun prepareOutputTarget(): Boolean {
@@ -315,6 +352,13 @@ class MainActivity : Activity() {
     private fun makeEven(v: Int): Int = if (v % 2 == 0) v else v - 1
 
     private fun stopRecordingSafely(showToast: Boolean) {
+        try {
+            internalAudioRecorder?.stop()
+        } catch (_: Exception) {
+        } finally {
+            internalAudioRecorder = null
+        }
+
         try {
             mediaRecorder?.apply {
                 try { stop() } catch (_: Exception) {}
